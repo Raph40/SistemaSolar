@@ -31,16 +31,46 @@ except Exception:
 NUM_STARS = 150
 stars = [{"x": random.randint(0, WIDTH), "y": random.randint(0, HEIGHT), "brightness": random.randint(100, 255), "dir": random.choice([-1, 1])} for _ in range(NUM_STARS)]
 
-PLANETS = [
-    {"name": "Mercury", "radius": 4, "distance": 50, "speed": 0.05, "color": (200, 200, 200), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Venus", "radius": 6, "distance": 80, "speed": 0.035, "color": (255, 165, 0), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Earth", "radius": 7, "distance": 110, "speed": 0.03, "color": (0, 100, 255), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Mars", "radius": 6, "distance": 140, "speed": 0.025, "color": (255, 0, 0), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Jupiter", "radius": 12, "distance": 180, "speed": 0.02, "color": (255, 200, 100), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Saturn", "radius": 10, "distance": 230, "speed": 0.017, "color": (210, 180, 140), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Uranus", "radius": 9, "distance": 270, "speed": 0.014, "color": (100, 255, 255), "angle": 0, "rotation": 0, "trail": []},
-    {"name": "Neptune", "radius": 9, "distance": 310, "speed": 0.012, "color": (0, 0, 255), "angle": 0, "rotation": 0, "trail": []},
+# Escalas para caber na tela visualmente
+DISTANCE_SCALE = 0.9  # escala de distância (milhões km para pixels)
+RADIUS_SCALE = 0.0005  # escala de raio (km para pixels)
+
+# Frames por segundo e dias por frame (ajustar a velocidade da simulação)
+FPS = 60
+DAYS_PER_FRAME = 0.8  # Ajustado para desacelerar ainda mais
+
+# Dados reais dos planetas:
+# raio em km, distância média ao sol em milhões de km, período orbital em dias, cor
+PLANETS_RAW = [
+    {"name": "Mercury", "radius_km": 2440, "distance_mkm": 57.9, "orbital_period_days": 88, "color": (200, 200, 200)},
+    {"name": "Venus", "radius_km": 6052, "distance_mkm": 108.2, "orbital_period_days": 224.7, "color": (255, 165, 0)},
+    {"name": "Earth", "radius_km": 6371, "distance_mkm": 149.6, "orbital_period_days": 365.2, "color": (0, 100, 255)},
+    {"name": "Mars", "radius_km": 3390, "distance_mkm": 227.9, "orbital_period_days": 687, "color": (255, 0, 0)},
+    {"name": "Jupiter", "radius_km": 69911, "distance_mkm": 778.5, "orbital_period_days": 4331, "color": (255, 200, 100)},
+    {"name": "Saturn", "radius_km": 58232, "distance_mkm": 1434, "orbital_period_days": 10747, "color": (210, 180, 140)},
+    {"name": "Uranus", "radius_km": 25362, "distance_mkm": 2871, "orbital_period_days": 30589, "color": (100, 255, 255)},
+    {"name": "Neptune", "radius_km": 24622, "distance_mkm": 4495, "orbital_period_days": 59800, "color": (0, 0, 255)},
 ]
+
+PLANETS = []
+for p in PLANETS_RAW:
+    distance_px = p["distance_mkm"] * DISTANCE_SCALE
+    radius_px = max(2, int(p["radius_km"] * RADIUS_SCALE))
+    frames_per_orbit = p["orbital_period_days"] / DAYS_PER_FRAME
+    speed = 2 * math.pi / frames_per_orbit
+    PLANETS.append({
+        "name": p["name"],
+        "radius": radius_px,
+        "distance": distance_px,
+        "speed": speed,
+        "color": p["color"],
+        "angle": 0,
+        "rotation": 0,
+        "trail": [],
+        "radius_km": p["radius_km"],
+        "distance_mkm": p["distance_mkm"],
+        "orbital_period_days": p["orbital_period_days"],
+    })
 
 font = pygame.font.SysFont(None, 20)
 fps_font = pygame.font.SysFont(None, 24)
@@ -110,7 +140,7 @@ def draw_planet(center, planet):
         screen.blit(trail_surface, (0, 0))
 
 def draw_info_panel(planet):
-    panel_w, panel_h = MENU_WIDTH - 20, 140
+    panel_w, panel_h = MENU_WIDTH - 20, 160
     panel_x = WIDTH - MENU_WIDTH + 10
     panel_y = HEIGHT - panel_h - 20
     pygame.draw.rect(screen, DARK_GRAY, (panel_x, panel_y, panel_w, panel_h))
@@ -118,9 +148,10 @@ def draw_info_panel(planet):
 
     lines = [
         f"Nome: {planet['name']}",
-        f"Raio: {planet['radius']} px",
-        f"Distância: {planet['distance']} px",
-        f"Velocidade: {planet['speed']:.4f} rad/frame",
+        f"Raio: {planet['radius_km']} km",
+        f"Distância: {planet['distance_mkm']} milhões km",
+        f"Período orbital: {planet['orbital_period_days']} dias",
+        f"Velocidade angular: {planet['speed']:.6f} rad/frame",
         f"Rotação: {planet['rotation']:.2f} rad",
     ]
 
@@ -161,6 +192,9 @@ def check_menu_click(pos):
     return None
 
 def main():
+
+    center = ( (WIDTH - MENU_WIDTH) // 2, HEIGHT // 2 )
+
     global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused
 
     clock = pygame.time.Clock()
@@ -244,7 +278,7 @@ def main():
         screen.blit(fps_text, (10, HEIGHT - fps_text.get_height() - 10))
 
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(FPS)
 
     pygame.quit()
 
