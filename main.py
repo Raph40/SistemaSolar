@@ -5,7 +5,7 @@ import random
 pygame.init()
 
 WIDTH, HEIGHT = 1280, 720
-MENU_WIDTH = 220
+MENU_HEIGHT = 70
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Sistema Solar")
 
@@ -88,7 +88,7 @@ camera_following = False
 paused = False
 
 # Botão Pausar/Retomar
-button_rect = pygame.Rect(WIDTH - MENU_WIDTH + 20, 10, MENU_WIDTH - 40, 30)
+button_rect = pygame.Rect(WIDTH - 140, 10, 120, 30)
 
 def draw_starry_background():
     for star in stars:
@@ -143,9 +143,10 @@ def draw_planet(center, planet):
         screen.blit(trail_surface, (0, 0))
 
 def draw_info_panel(planet):
-    panel_w, panel_h = MENU_WIDTH - 20, 160
-    panel_x = WIDTH - MENU_WIDTH + 10
-    panel_y = HEIGHT - panel_h - 20
+    panel_w, panel_h = 300, 140
+    margin = 20
+    panel_x = WIDTH - panel_w - margin
+    panel_y = HEIGHT - panel_h - margin
     pygame.draw.rect(screen, DARK_GRAY, (panel_x, panel_y, panel_w, panel_h))
     pygame.draw.rect(screen, WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
 
@@ -160,10 +161,10 @@ def draw_info_panel(planet):
 
     for i, line in enumerate(lines):
         txt = info_font.render(line, True, WHITE)
-        screen.blit(txt, (panel_x + 10, panel_y + 10 + i * 25))
+        screen.blit(txt, (panel_x + 10, panel_y + 10 + i * 22))
 
 def draw_menu():
-    pygame.draw.rect(screen, DARK_GRAY, (WIDTH - MENU_WIDTH, 0, MENU_WIDTH, HEIGHT))
+    pygame.draw.rect(screen, DARK_GRAY, (0, 0, WIDTH, MENU_HEIGHT))
 
     # Botão Pausar/Retomar
     mx, my = pygame.mouse.get_pos()
@@ -171,32 +172,37 @@ def draw_menu():
         color = BUTTON_HOVER_COLOR
     else:
         color = BUTTON_COLOR
+
     pygame.draw.rect(screen, color, button_rect)
     btn_text = font.render("Retomar" if paused else "Pausar", True, BUTTON_TEXT_COLOR)
     btn_text_rect = btn_text.get_rect(center=button_rect.center)
     screen.blit(btn_text, btn_text_rect)
 
     title = font.render("Selecione um Planeta", True, WHITE)
-    screen.blit(title, (WIDTH - MENU_WIDTH + 10, 50))
+    screen.blit(title, (10, 8))
 
     for i, planet in enumerate(PLANETS):
-        y = 80 + i * 30
+        x = 20 + i * 120  # coloca todos em uma única linha
+        y = 37            # mantém todos na mesma altura
         color = HIGHLIGHT if planet == selected_planet else WHITE
         text = font.render(planet["name"], True, color)
-        screen.blit(text, (WIDTH - MENU_WIDTH + 20, y))
+        screen.blit(text, (x, y))
+
 
 def check_menu_click(pos):
     x, y = pos
-    if x < WIDTH - MENU_WIDTH:
-        return None
-    idx = (y - 80) // 30
-    if 0 <= idx < len(PLANETS):
-        return PLANETS[idx]
+    if y < MENU_HEIGHT:
+        for i, planet in enumerate(PLANETS):
+            px = 20 + i * 120
+            py = 37
+            planet_rect = pygame.Rect(px, py, 110, 25)
+            if planet_rect.collidepoint(x, y):
+                return PLANETS[i]
     return None
 
 def main():
 
-    center = ( (WIDTH - MENU_WIDTH) // 2, HEIGHT // 2 )
+    center = (WIDTH // 2, (HEIGHT + MENU_HEIGHT) // 2)
 
     global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused, camera_following
 
@@ -205,7 +211,7 @@ def main():
 
     clock = pygame.time.Clock()
     running = True
-    center = (WIDTH // 2 - MENU_WIDTH//2, HEIGHT // 2)
+    center = (WIDTH // 2, (HEIGHT + MENU_HEIGHT) // 2)
 
     while running:
         for event in pygame.event.get():
@@ -232,11 +238,11 @@ def main():
 
                             tx, ty = transform_pos(center, planet_x, planet_y)
 
-                            target_offset_x = (WIDTH - MENU_WIDTH)//2 - tx
+                            target_offset_x = WIDTH // 2 - tx
                             target_offset_y = HEIGHT//2 - ty
                             camera_following = True
                         else:
-                            for planet in PLANETS:
+                            for planet in reversed(PLANETS):
                                 px = center[0] + math.cos(planet["angle"]) * planet["distance"]
                                 py = center[1] + math.sin(planet["angle"]) * planet["distance"]
                                 tx, ty = transform_pos(center, px, py)
@@ -275,8 +281,28 @@ def main():
             planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
             planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
 
+            min_zoom = 0.4
+            max_zoom = 2.5
+            max_distance = max(p["distance"] for p in PLANETS)
+            neptune = next(p for p in PLANETS if p["name"] == "Neptune")
+
+            if selected_planet["name"] in ["Jupiter", "Saturn", "Uranus"]:
+                distance_for_zoom = neptune["distance"]
+            else:
+                distance_for_zoom = selected_planet["distance"]
+
+            desired_zoom = max_zoom - (distance_for_zoom / max_distance) * (max_zoom - min_zoom)
+
+            # Se for Netuno, garante zoom mínimo para ele ficar visível
+            if selected_planet["name"] == "Neptune":
+                desired_zoom = max(desired_zoom, 0.7)  # força pelo menos 0.7 de zoom no Netuno
+
+            zoom = lerp(zoom, desired_zoom, 0.15)
+
             tx, ty = transform_pos(center, planet_x, planet_y)
-            target_offset_x = (WIDTH - MENU_WIDTH) // 2 - tx
+
+            # Ajuste para centralizar o planeta na área visível (considerando MENU_WIDTH)
+            target_offset_x = WIDTH // 2 - tx
             target_offset_y = HEIGHT // 2 - ty
 
             offset_x = lerp(offset_x, target_offset_x, 0.1)
