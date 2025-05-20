@@ -211,7 +211,6 @@ def draw_menu():
         text = font.render(planet["name"], True, color)
         screen.blit(text, (x, y))
 
-
 def check_menu_click(pos):
     x, y = pos
     if y < MENU_HEIGHT:
@@ -224,10 +223,7 @@ def check_menu_click(pos):
     return None
 
 def main():
-
     center = (WIDTH // 2, (HEIGHT + MENU_HEIGHT) // 2)
-
-    simulated_days = 0
 
     global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused, camera_following
 
@@ -257,15 +253,23 @@ def main():
                             if click_sound:
                                 click_sound.play()
 
-                            # Calcular posição do planeta e ajustar offset para centralizá-lo
-                            planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
-                            planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
-
-                            tx, ty = transform_pos(center, planet_x, planet_y)
-
-                            target_offset_x = WIDTH // 2 - tx
-                            target_offset_y = HEIGHT//2 - ty
-                            camera_following = True
+                            # Nova lógica para Netuno - movimento instantâneo
+                            if selected_planet["name"] == "Neptune":
+                                zoom = 0.5  # Zoom fixo para Netuno
+                                planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
+                                planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
+                                tx, ty = transform_pos(center, planet_x, planet_y)
+                                offset_x = WIDTH//2 - tx
+                                offset_y = HEIGHT//2 - ty
+                                camera_following = False
+                            else:
+                                # Lógica normal para outros planetas
+                                planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
+                                planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
+                                tx, ty = transform_pos(center, planet_x, planet_y)
+                                target_offset_x = WIDTH//2 - tx
+                                target_offset_y = HEIGHT//2 - ty
+                                camera_following = True
                         else:
                             for planet in reversed(PLANETS):
                                 px = center[0] + math.cos(planet["angle"]) * planet["distance"]
@@ -302,7 +306,7 @@ def main():
                     last_mouse_pos = (mx, my)
                     camera_following = False
 
-        if camera_following and selected_planet:
+        if camera_following and selected_planet and selected_planet["name"] != "Neptune":
             planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
             planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
 
@@ -317,19 +321,11 @@ def main():
                 distance_for_zoom = selected_planet["distance"]
 
             desired_zoom = max_zoom - (distance_for_zoom / max_distance) * (max_zoom - min_zoom)
-
-            # Se for Netuno, garante zoom mínimo para ele ficar visível
-            if selected_planet["name"] == "Neptune":
-                desired_zoom = max(desired_zoom, 0.7)  # força pelo menos 0.7 de zoom no Netuno
-
             zoom = lerp(zoom, desired_zoom, 0.15)
 
             tx, ty = transform_pos(center, planet_x, planet_y)
-
-            # Ajuste para centralizar o planeta na área visível (considerando MENU_WIDTH)
             target_offset_x = WIDTH // 2 - tx
             target_offset_y = HEIGHT // 2 - ty
-
             offset_x = lerp(offset_x, target_offset_x, 0.1)
             offset_y = lerp(offset_y, target_offset_y, 0.1)
 
@@ -353,14 +349,8 @@ def main():
             draw_info_panel(selected_planet)
 
         fps = clock.get_fps()
-        if not paused:
-            simulated_days += DAYS_PER_FRAME
         fps_text = fps_font.render(f"FPS: {int(fps)}", True, WHITE)
         screen.blit(fps_text, (10, HEIGHT - fps_text.get_height() - 10))
-
-        # Mostra o tempo simulado
-        time_text = fps_font.render(f"Tempo simulado: {int(simulated_days):,} dias", True, WHITE)
-        screen.blit(time_text, (10, HEIGHT - fps_text.get_height() - 35))
 
         pygame.display.flip()
         clock.tick(FPS)
@@ -369,3 +359,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
