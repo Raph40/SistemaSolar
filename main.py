@@ -82,6 +82,9 @@ dragging = False
 last_mouse_pos = None
 
 selected_planet = None
+target_offset_x = 0
+target_offset_y = 0
+camera_following = False
 paused = False
 
 # Botão Pausar/Retomar
@@ -173,7 +176,7 @@ def draw_menu():
     btn_text_rect = btn_text.get_rect(center=button_rect.center)
     screen.blit(btn_text, btn_text_rect)
 
-    title = font.render("Planetas", True, WHITE)
+    title = font.render("Selecione um Planeta", True, WHITE)
     screen.blit(title, (WIDTH - MENU_WIDTH + 10, 50))
 
     for i, planet in enumerate(PLANETS):
@@ -195,7 +198,10 @@ def main():
 
     center = ( (WIDTH - MENU_WIDTH) // 2, HEIGHT // 2 )
 
-    global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused
+    global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused, camera_following
+
+    def lerp(a, b, t):
+        return a + (b - a) * t
 
     clock = pygame.time.Clock()
     running = True
@@ -219,6 +225,16 @@ def main():
                             selected_planet = clicked_planet
                             if click_sound:
                                 click_sound.play()
+
+                            # Calcular posição do planeta e ajustar offset para centralizá-lo
+                            planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
+                            planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
+
+                            tx, ty = transform_pos(center, planet_x, planet_y)
+
+                            target_offset_x = (WIDTH - MENU_WIDTH)//2 - tx
+                            target_offset_y = HEIGHT//2 - ty
+                            camera_following = True
                         else:
                             for planet in PLANETS:
                                 px = center[0] + math.cos(planet["angle"]) * planet["distance"]
@@ -253,6 +269,18 @@ def main():
                     offset_x += mx - lx
                     offset_y += my - ly
                     last_mouse_pos = (mx, my)
+                    camera_following = False
+
+        if camera_following and selected_planet:
+            planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
+            planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
+
+            tx, ty = transform_pos(center, planet_x, planet_y)
+            target_offset_x = (WIDTH - MENU_WIDTH) // 2 - tx
+            target_offset_y = HEIGHT // 2 - ty
+
+            offset_x = lerp(offset_x, target_offset_x, 0.1)
+            offset_y = lerp(offset_y, target_offset_y, 0.1)
 
         screen.fill(BLACK)
         draw_starry_background()
