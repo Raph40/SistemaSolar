@@ -42,14 +42,29 @@ DAYS_PER_FRAME = 0.8  # Ajustado para desacelerar ainda mais
 # Dados reais dos planetas:
 # raio em km, distância média ao sol em milhões de km, período orbital em dias, cor
 PLANETS_RAW = [
-    {"name": "Mercury", "radius_km": 2440, "distance_mkm": 57.9, "orbital_period_days": 88, "color": (200, 200, 200)},
-    {"name": "Venus", "radius_km": 6052, "distance_mkm": 108.2, "orbital_period_days": 224.7, "color": (255, 165, 0)},
-    {"name": "Earth", "radius_km": 6371, "distance_mkm": 149.6, "orbital_period_days": 365.2, "color": (0, 100, 255)},
-    {"name": "Mars", "radius_km": 3390, "distance_mkm": 227.9, "orbital_period_days": 687, "color": (255, 0, 0)},
-    {"name": "Jupiter", "radius_km": 69911, "distance_mkm": 778.5, "orbital_period_days": 4331, "color": (255, 200, 100)},
-    {"name": "Saturn", "radius_km": 58232, "distance_mkm": 1434, "orbital_period_days": 10747, "color": (210, 180, 140)},
-    {"name": "Uranus", "radius_km": 25362, "distance_mkm": 2871, "orbital_period_days": 30589, "color": (100, 255, 255)},
-    {"name": "Neptune", "radius_km": 24622, "distance_mkm": 4495, "orbital_period_days": 59800, "color": (0, 0, 255)},
+    {"name": "Mercury", "radius_km": 2440, "distance_mkm": 57.9, "orbital_period_days": 88, "color": (200, 200, 200),
+     "temperature_c": 167, "moons": 0, "composition": "Rochoso", "description": "O planeta mais próximo do Sol."},
+
+    {"name": "Venus", "radius_km": 6052, "distance_mkm": 108.2, "orbital_period_days": 224.7, "color": (255, 165, 0),
+     "temperature_c": 464, "moons": 0, "composition": "Rochoso", "description": "Conhecido como planeta irmão da Terra."},
+
+    {"name": "Earth", "radius_km": 6371, "distance_mkm": 149.6, "orbital_period_days": 365.2, "color": (0, 100, 255),
+     "temperature_c": 15, "moons": 1, "composition": "Rochoso", "description": "O planeta azul."},
+
+    {"name": "Mars", "radius_km": 3390, "distance_mkm": 227.9, "orbital_period_days": 687, "color": (255, 0, 0),
+     "temperature_c": -65, "moons": 2, "composition": "Rochoso", "description": "O planeta vermelho."},
+
+    {"name": "Jupiter", "radius_km": 69911, "distance_mkm": 778.5, "orbital_period_days": 4331, "color": (255, 200, 100),
+     "temperature_c": -110, "moons": 79, "composition": "Gasoso", "description": "O maior planeta do sistema solar."},
+
+    {"name": "Saturn", "radius_km": 58232, "distance_mkm": 1434, "orbital_period_days": 10747, "color": (210, 180, 140),
+     "temperature_c": -140, "moons": 82, "composition": "Gasoso", "description": "Famoso pelos seus anéis."},
+
+    {"name": "Uranus", "radius_km": 25362, "distance_mkm": 2871, "orbital_period_days": 30589, "color": (100, 255, 255),
+     "temperature_c": -195, "moons": 27, "composition": "Gasoso", "description": "Planeta com eixo inclinado."},
+
+    {"name": "Neptune", "radius_km": 24622, "distance_mkm": 4495, "orbital_period_days": 59800, "color": (0, 0, 255),
+     "temperature_c": -200, "moons": 14, "composition": "Gasoso", "description": "O planeta mais distante."},
 ]
 
 PLANETS = []
@@ -70,6 +85,10 @@ for p in PLANETS_RAW:
         "radius_km": p["radius_km"],
         "distance_mkm": p["distance_mkm"],
         "orbital_period_days": p["orbital_period_days"],
+        "temperature_c": p["temperature_c"],
+        "moons": p["moons"],
+        "composition": p["composition"],
+        "description": p["description"],
     })
 
 font = pygame.font.SysFont(None, 20)
@@ -143,7 +162,7 @@ def draw_planet(center, planet):
         screen.blit(trail_surface, (0, 0))
 
 def draw_info_panel(planet):
-    panel_w, panel_h = 300, 140
+    panel_w, panel_h = 320, 210
     margin = 20
     panel_x = WIDTH - panel_w - margin
     panel_y = HEIGHT - panel_h - margin
@@ -155,13 +174,17 @@ def draw_info_panel(planet):
         f"Raio: {planet['radius_km']} km",
         f"Distância: {planet['distance_mkm']} milhões km",
         f"Período orbital: {planet['orbital_period_days']} dias",
+        f"Temperatura média: {planet.get('temperature_c', 'N/A')} °C",
+        f"Número de luas: {planet.get('moons', 0)}",
+        f"Composição: {planet.get('composition', 'Desconhecida')}",
         f"Velocidade angular: {planet['speed']:.6f} rad/frame",
         f"Rotação: {planet['rotation']:.2f} rad",
+        f"Descrição: {planet.get('description', '')}",
     ]
 
     for i, line in enumerate(lines):
         txt = info_font.render(line, True, WHITE)
-        screen.blit(txt, (panel_x + 10, panel_y + 10 + i * 22))
+        screen.blit(txt, (panel_x + 10, panel_y + 10 + i * 20))
 
 def draw_menu():
     pygame.draw.rect(screen, DARK_GRAY, (0, 0, WIDTH, MENU_HEIGHT))
@@ -203,6 +226,8 @@ def check_menu_click(pos):
 def main():
 
     center = (WIDTH // 2, (HEIGHT + MENU_HEIGHT) // 2)
+
+    simulated_days = 0
 
     global zoom, offset_x, offset_y, dragging, last_mouse_pos, selected_planet, paused, camera_following
 
@@ -328,8 +353,14 @@ def main():
             draw_info_panel(selected_planet)
 
         fps = clock.get_fps()
+        if not paused:
+            simulated_days += DAYS_PER_FRAME
         fps_text = fps_font.render(f"FPS: {int(fps)}", True, WHITE)
         screen.blit(fps_text, (10, HEIGHT - fps_text.get_height() - 10))
+
+        # Mostra o tempo simulado
+        time_text = fps_font.render(f"Tempo simulado: {int(simulated_days):,} dias", True, WHITE)
+        screen.blit(time_text, (10, HEIGHT - fps_text.get_height() - 35))
 
         pygame.display.flip()
         clock.tick(FPS)
