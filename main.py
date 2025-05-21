@@ -58,7 +58,8 @@ PLANETS_RAW = [
      "temperature_c": -110, "moons": 79, "composition": "Gasoso", "description": "O maior planeta do sistema solar."},
 
     {"name": "Saturn", "radius_km": 58232, "distance_mkm": 1434, "orbital_period_days": 10747, "color": (210, 180, 140),
-     "temperature_c": -140, "moons": 82, "composition": "Gasoso", "description": "Famoso pelos seus anéis."},
+     "temperature_c": -140, "moons": 82, "composition": "Gasoso", "description": "Famoso pelos seus anéis.",
+     "has_rings": True, "ring_color": (200, 200, 180), "ring_inner_radius": 1.5, "ring_outer_radius": 2.3},
 
     {"name": "Uranus", "radius_km": 25362, "distance_mkm": 2871, "orbital_period_days": 30589, "color": (100, 255, 255),
      "temperature_c": -195, "moons": 27, "composition": "Gasoso", "description": "Planeta com eixo inclinado."},
@@ -73,7 +74,7 @@ for p in PLANETS_RAW:
     radius_px = max(2, int(p["radius_km"] * RADIUS_SCALE))
     frames_per_orbit = p["orbital_period_days"] / DAYS_PER_FRAME
     speed = 2 * math.pi / frames_per_orbit
-    PLANETS.append({
+    planet_data = {
         "name": p["name"],
         "radius": radius_px,
         "distance": distance_px,
@@ -89,7 +90,13 @@ for p in PLANETS_RAW:
         "moons": p["moons"],
         "composition": p["composition"],
         "description": p["description"],
-    })
+    }
+    if "has_rings" in p:
+        planet_data["has_rings"] = p["has_rings"]
+        planet_data["ring_color"] = p["ring_color"]
+        planet_data["ring_inner_radius"] = p["ring_inner_radius"]
+        planet_data["ring_outer_radius"] = p["ring_outer_radius"]
+    PLANETS.append(planet_data)
 
 font = pygame.font.SysFont(None, 20)
 fps_font = pygame.font.SysFont(None, 24)
@@ -131,11 +138,36 @@ def draw_planet_orbit(center, planet):
     if radius > 0:
         pygame.draw.circle(screen, WHITE, transform_pos(center, center[0], center[1]), radius, 1)
 
+def draw_planet_rings(center, planet, tx, ty):
+    if not planet.get("has_rings", False):
+        return
+    
+    inner_radius = planet["radius"] * planet["ring_inner_radius"] * zoom
+    outer_radius = planet["radius"] * planet["ring_outer_radius"] * zoom
+    
+    # Criar uma superfície para os anéis com transparência
+    ring_surface = pygame.Surface((outer_radius * 2, outer_radius * 2), pygame.SRCALPHA)
+    
+    # Desenhar os anéis na superfície
+    pygame.draw.circle(ring_surface, (*planet["ring_color"], 150), (outer_radius, outer_radius), outer_radius)
+    pygame.draw.circle(ring_surface, (0, 0, 0, 0), (outer_radius, outer_radius), inner_radius)
+    
+    # Rotacionar os anéis (opcional, para dar um efeito mais dinâmico)
+    angle = planet["rotation"] * 2  # Rotação mais rápida que o planeta
+    rotated_ring = pygame.transform.rotate(ring_surface, angle * 180/math.pi)
+    ring_rect = rotated_ring.get_rect(center=(tx, ty))
+    
+    # Desenhar a superfície rotacionada na tela
+    screen.blit(rotated_ring, ring_rect)
+
 def draw_planet(center, planet):
     x = center[0] + math.cos(planet["angle"]) * planet["distance"]
     y = center[1] + math.sin(planet["angle"]) * planet["distance"]
     tx, ty = transform_pos(center, x, y)
     radius = max(1, int(planet["radius"] * zoom))
+
+    # Desenhar os anéis primeiro (para ficarem atrás do planeta se estiverem muito grandes)
+    draw_planet_rings(center, planet, tx, ty)
 
     pygame.draw.circle(screen, (30, 30, 30), (tx+3, ty+3), radius+2)
     pygame.draw.circle(screen, planet["color"], (tx, ty), radius)
@@ -211,7 +243,6 @@ def draw_menu():
         text = font.render(planet["name"], True, color)
         screen.blit(text, (x, y))
 
-
 def check_menu_click(pos):
     x, y = pos
     if y < MENU_HEIGHT:
@@ -224,7 +255,6 @@ def check_menu_click(pos):
     return None
 
 def main():
-
     center = (WIDTH // 2, (HEIGHT + MENU_HEIGHT) // 2)
 
     simulated_days = 0
