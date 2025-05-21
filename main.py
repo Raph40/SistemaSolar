@@ -32,7 +32,7 @@ NUM_STARS = 150
 stars = [{"x": random.randint(0, WIDTH), "y": random.randint(0, HEIGHT), "brightness": random.randint(100, 255), "dir": random.choice([-1, 1])} for _ in range(NUM_STARS)]
 
 # Escalas para caber na tela visualmente
-DISTANCE_SCALE = 0.5  # escala de distância (milhões km para pixels)
+DISTANCE_SCALE = 0.9  # escala de distância (milhões km para pixels)
 RADIUS_SCALE = 0.0005  # escala de raio (km para pixels)
 
 # Frames por segundo e dias por frame (ajustar a velocidade da simulação)
@@ -309,18 +309,23 @@ def main():
             min_zoom = 0.4
             max_zoom = 2.5
             max_distance = max(p["distance"] for p in PLANETS)
-            neptune = next(p for p in PLANETS if p["name"] == "Neptune")
+            zoom_planet_jupiter = 3500
+            zoom_planet_saturn = 4000
+            zoom_planet_urano = 4400
+            zoom_planet_neptune = 4550
 
-            if selected_planet["name"] in ["Jupiter", "Saturn", "Uranus"]:
-                distance_for_zoom = neptune["distance"]
+            if selected_planet["name"] in ["Jupiter"]:
+                distance_for_zoom = zoom_planet_jupiter
+            elif selected_planet["name"] in ["Saturn"]:
+                distance_for_zoom = zoom_planet_saturn
+            elif selected_planet["name"] in ["Uranus"]:
+                distance_for_zoom = zoom_planet_urano
+            elif selected_planet["name"] in ["Neptune"]:
+                distance_for_zoom = zoom_planet_neptune
             else:
                 distance_for_zoom = selected_planet["distance"]
 
             desired_zoom = max_zoom - (distance_for_zoom / max_distance) * (max_zoom - min_zoom)
-
-            # Se for Netuno, garante zoom mínimo para ele ficar visível
-            if selected_planet["name"] == "Neptune":
-                desired_zoom = max(desired_zoom, 0.7)  # força pelo menos 0.7 de zoom no Netuno
 
             zoom = lerp(zoom, desired_zoom, 0.15)
 
