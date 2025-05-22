@@ -28,6 +28,14 @@ try:
 except Exception:
     click_sound = None
 
+# Load sun texture
+try:
+    sun_texture = pygame.image.load("texturas/sun.jpg")
+    sun_texture = pygame.transform.scale(sun_texture, (200, 200))
+except:
+    sun_texture = None
+    print("Could not load sun texture, using solid color instead")
+
 NUM_STARS = 150
 stars = [{"x": random.randint(0, WIDTH), "y": random.randint(0, HEIGHT), "brightness": random.randint(100, 255), "dir": random.choice([-1, 1])} for _ in range(NUM_STARS)]
 
@@ -67,6 +75,49 @@ PLANETS_RAW = [
     {"name": "Neptune", "radius_km": 24622, "distance_mkm": 4495, "orbital_period_days": 59800, "color": (0, 0, 255),
      "temperature_c": -200, "moons": 14, "composition": "Gasoso", "description": "O planeta mais distante."},
 ]
+
+# Configurações do Cinturão de Asteroides
+ASTEROID_BELT_INNER = 2.2  # Distância em AU (unidades astronômicas)
+ASTEROID_BELT_OUTER = 3.2
+ASTEROID_COUNT = 200
+ASTEROID_COLORS = [(150, 150, 150), (180, 180, 180), (200, 200, 200)]
+asteroids = []
+
+# Converter AU para milhões de km (1 AU = ~149.6 milhões de km)
+AU_TO_MKM = 149.6
+
+# Criar asteroides
+for _ in range(ASTEROID_COUNT):
+    # Distribuição aleatória entre o inner e outer belt
+    distance_au = random.uniform(ASTEROID_BELT_INNER, ASTEROID_BELT_OUTER)
+    distance_mkm = distance_au * AU_TO_MKM
+    
+    # Ângulo aleatório
+    angle = random.uniform(0, 2 * math.pi)
+    
+    # Tamanho aleatório (pequeno)
+    radius_km = random.uniform(1, 500)  # De 1km a 500km
+    radius_px = max(1, int(radius_km * RADIUS_SCALE))
+    
+    # Cor aleatória entre as opções
+    color = random.choice(ASTEROID_COLORS)
+    
+    # Velocidade orbital (baseada na 3ª lei de Kepler)
+    # Período orbital em anos: T² = a³ (a em AU)
+    period_years = math.sqrt(distance_au ** 3)
+    period_days = period_years * 365.25
+    frames_per_orbit = period_days / DAYS_PER_FRAME
+    speed = 2 * math.pi / frames_per_orbit
+    
+    asteroids.append({
+        "distance_mkm": distance_mkm,
+        "distance": distance_mkm * DISTANCE_SCALE,
+        "angle": angle,
+        "speed": speed,
+        "radius": radius_px,
+        "color": color,
+        "radius_km": radius_km
+    })
 
 PLANETS = []
 for p in PLANETS_RAW:
@@ -138,6 +189,29 @@ def draw_planet_orbit(center, planet):
     if radius > 0:
         pygame.draw.circle(screen, WHITE, transform_pos(center, center[0], center[1]), radius, 1)
 
+def draw_asteroid_belt(center):
+    inner_radius = ASTEROID_BELT_INNER * AU_TO_MKM * DISTANCE_SCALE * zoom
+    outer_radius = ASTEROID_BELT_OUTER * AU_TO_MKM * DISTANCE_SCALE * zoom
+    
+    # Desenhar uma área translúcida para representar o cinturão
+    belt_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    pygame.draw.circle(belt_surface, (100, 100, 100, 30), 
+                      transform_pos(center, center[0], center[1]), outer_radius)
+    pygame.draw.circle(belt_surface, (0, 0, 0, 0), 
+                      transform_pos(center, center[0], center[1]), inner_radius)
+    screen.blit(belt_surface, (0, 0))
+    
+    # Desenhar asteroides individuais
+    for asteroid in asteroids:
+        x = center[0] + math.cos(asteroid["angle"]) * asteroid["distance"]
+        y = center[1] + math.sin(asteroid["angle"]) * asteroid["distance"]
+        tx, ty = transform_pos(center, x, y)
+        radius = max(1, int(asteroid["radius"] * zoom))
+        
+        # Só desenhar asteroides visíveis
+        if (tx > -50 and tx < WIDTH + 50 and ty > -50 and ty < HEIGHT + 50):
+            pygame.draw.circle(screen, asteroid["color"], (tx, ty), radius)
+
 def draw_planet_rings(center, planet, tx, ty):
     if not planet.get("has_rings", False):
         return
@@ -145,20 +219,36 @@ def draw_planet_rings(center, planet, tx, ty):
     inner_radius = planet["radius"] * planet["ring_inner_radius"] * zoom
     outer_radius = planet["radius"] * planet["ring_outer_radius"] * zoom
     
-    # Criar uma superfície para os anéis com transparência
     ring_surface = pygame.Surface((outer_radius * 2, outer_radius * 2), pygame.SRCALPHA)
-    
-    # Desenhar os anéis na superfície
     pygame.draw.circle(ring_surface, (*planet["ring_color"], 150), (outer_radius, outer_radius), outer_radius)
     pygame.draw.circle(ring_surface, (0, 0, 0, 0), (outer_radius, outer_radius), inner_radius)
     
-    # Rotacionar os anéis (opcional, para dar um efeito mais dinâmico)
-    angle = planet["rotation"] * 2  # Rotação mais rápida que o planeta
+    angle = planet["rotation"] * 2
     rotated_ring = pygame.transform.rotate(ring_surface, angle * 180/math.pi)
     ring_rect = rotated_ring.get_rect(center=(tx, ty))
-    
-    # Desenhar a superfície rotacionada na tela
     screen.blit(rotated_ring, ring_rect)
+
+def draw_sun(center):
+    sun_x, sun_y = transform_pos(center, center[0], center[1])
+    sun_radius = max(5, int(20 * zoom))
+    
+    if sun_texture:
+        texture_size = sun_radius
+        textured_sun = pygame.Surface((texture_size*2, texture_size*2), pygame.SRCALPHA)
+        scaled_texture = pygame.transform.scale(sun_texture, (texture_size*2, texture_size*2))
+        textured_sun.blit(scaled_texture, (0, 0))
+        mask = pygame.Surface((texture_size*2, texture_size*2), pygame.SRCALPHA)
+        pygame.draw.circle(mask, (255, 255, 255, 255), (texture_size, texture_size), texture_size)
+        textured_sun.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        sun_rect = textured_sun.get_rect(center=(sun_x, sun_y))
+        screen.blit(textured_sun, sun_rect)
+        glow_radius = sun_radius + 10
+        glow_surface = pygame.Surface((glow_radius*2, glow_radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surface, (255, 255, 100, 50), (glow_radius, glow_radius), glow_radius)
+        screen.blit(glow_surface, (sun_x - glow_radius, sun_y - glow_radius))
+    else:
+        pygame.draw.circle(screen, (255, 255, 0), (sun_x, sun_y), sun_radius)
+        pygame.draw.circle(screen, (255, 255, 100, 100), (sun_x, sun_y), sun_radius + 10)
 
 def draw_planet(center, planet):
     x = center[0] + math.cos(planet["angle"]) * planet["distance"]
@@ -166,7 +256,6 @@ def draw_planet(center, planet):
     tx, ty = transform_pos(center, x, y)
     radius = max(1, int(planet["radius"] * zoom))
 
-    # Desenhar os anéis primeiro (para ficarem atrás do planeta se estiverem muito grandes)
     draw_planet_rings(center, planet, tx, ty)
 
     pygame.draw.circle(screen, (30, 30, 30), (tx+3, ty+3), radius+2)
@@ -221,7 +310,6 @@ def draw_info_panel(planet):
 def draw_menu():
     pygame.draw.rect(screen, DARK_GRAY, (0, 0, WIDTH, MENU_HEIGHT))
 
-    # Botão Pausar/Retomar
     mx, my = pygame.mouse.get_pos()
     if button_rect.collidepoint(mx, my):
         color = BUTTON_HOVER_COLOR
@@ -237,8 +325,8 @@ def draw_menu():
     screen.blit(title, (10, 8))
 
     for i, planet in enumerate(PLANETS):
-        x = 20 + i * 120  # coloca todos em uma única linha
-        y = 37            # mantém todos na mesma altura
+        x = 20 + i * 120
+        y = 37
         color = HIGHLIGHT if planet == selected_planet else WHITE
         text = font.render(planet["name"], True, color)
         screen.blit(text, (x, y))
@@ -287,7 +375,6 @@ def main():
                             if click_sound:
                                 click_sound.play()
 
-                            # Calcular posição do planeta e ajustar offset para centralizá-lo
                             planet_x = center[0] + math.cos(selected_planet["angle"]) * selected_planet["distance"]
                             planet_y = center[1] + math.sin(selected_planet["angle"]) * selected_planet["distance"]
 
@@ -361,7 +448,6 @@ def main():
 
             tx, ty = transform_pos(center, planet_x, planet_y)
 
-            # Ajuste para centralizar o planeta na área visível (considerando MENU_WIDTH)
             target_offset_x = WIDTH // 2 - tx
             target_offset_y = HEIGHT // 2 - ty
 
@@ -371,8 +457,7 @@ def main():
         screen.fill(BLACK)
         draw_starry_background()
 
-        sun_x, sun_y = transform_pos(center, center[0], center[1])
-        pygame.draw.circle(screen, (255, 255, 0), (sun_x, sun_y), max(5, int(20 * zoom)))
+        draw_sun(center)
 
         for planet in PLANETS:
             if not paused:
@@ -381,6 +466,13 @@ def main():
 
             draw_planet_orbit(center, planet)
             draw_planet(center, planet)
+
+        # Desenhar o cinturão de asteroides após Marte e antes de Júpiter
+        if not paused:
+            for asteroid in asteroids:
+                asteroid["angle"] += asteroid["speed"]
+        
+        draw_asteroid_belt(center)
 
         draw_menu()
 
@@ -393,7 +485,6 @@ def main():
         fps_text = fps_font.render(f"FPS: {int(fps)}", True, WHITE)
         screen.blit(fps_text, (10, HEIGHT - fps_text.get_height() - 10))
 
-        # Mostra o tempo simulado
         time_text = fps_font.render(f"Tempo simulado: {int(simulated_days):,} dias", True, WHITE)
         screen.blit(time_text, (10, HEIGHT - fps_text.get_height() - 35))
 
