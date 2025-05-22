@@ -242,13 +242,7 @@ def draw_sun(center):
         textured_sun.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         sun_rect = textured_sun.get_rect(center=(sun_x, sun_y))
         screen.blit(textured_sun, sun_rect)
-        glow_radius = sun_radius + 10
-        glow_surface = pygame.Surface((glow_radius*2, glow_radius*2), pygame.SRCALPHA)
-        pygame.draw.circle(glow_surface, (255, 255, 100, 50), (glow_radius, glow_radius), glow_radius)
-        screen.blit(glow_surface, (sun_x - glow_radius, sun_y - glow_radius))
-    else:
-        pygame.draw.circle(screen, (255, 255, 0), (sun_x, sun_y), sun_radius)
-        pygame.draw.circle(screen, (255, 255, 100, 100), (sun_x, sun_y), sun_radius + 10)
+        
 
 def draw_planet(center, planet):
     x = center[0] + math.cos(planet["angle"]) * planet["distance"]
@@ -404,7 +398,7 @@ def main():
                 elif event.button == 4:
                     zoom = min(5, zoom * 1.1)
                 elif event.button == 5:
-                    zoom = max(0.1, zoom / 1.1)
+                    zoom = max(0.07, zoom / 1.1)
 
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
