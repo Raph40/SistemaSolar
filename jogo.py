@@ -28,8 +28,14 @@ tiro_img.fill((255, 255, 0))
 pygame.mixer.init()
 tiro_som = pygame.mixer.Sound("./musicas/som_tiro.wav")
 explosao_som = pygame.mixer.Sound("./musicas/som_explosao.wav")
+colisao_som = pygame.mixer.Sound("./musicas/som_colisao.wav")
 fundo_som = pygame.mixer.Sound("space_music.ogg")
 fundo_som.set_volume(0.3)
+
+# Ajuste do volume dos efeitos sonoros
+tiro_som.set_volume(0.03)
+explosao_som.set_volume(0.1)
+colisao_som.set_volume(0.3)
 
 # Classes
 class Nave(pygame.sprite.Sprite):
@@ -187,7 +193,7 @@ def iniciar_jogo():
             if nave.rect.colliderect(inimigo.rect):
                 inimigo.kill()
                 nave.vidas -= 1
-                explosao_som.play()
+                colisao_som.play()
                 if nave.vidas <= 0:
                     fundo_som.stop()
                     rodando = False
